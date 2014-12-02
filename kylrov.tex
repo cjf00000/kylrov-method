@@ -1,0 +1,261 @@
+\documentclass{article}
+
+\usepackage{amsmath, amsfonts}
+\usepackage{theorem}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\newenvironment{proof}[1][Proof]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{definition}[1][Definition]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{example}[1][Example]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{remark}[1][Remark]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+
+\newcommand{\qed}{\nobreak \ifvmode \relax \else
+      \ifdim\lastskip<1.5em \hskip-\lastskip
+      \hskip1.5em plus0em minus0.5em \fi \nobreak
+      \vrule height0.75em width0.5em depth0.25em\fi}
+
+\title{Krylov Subspace Methods}
+\author{Jianfei Chen}
+
+\newcommand{\vspan}[1]{\textrm{span}\{#1\}}
+
+\begin{document}
+\maketitle
+
+\section{Krylov Subspace}
+\begin{definition}
+$$K(A, q_1, n) = \vspan{q_1, Aq_1, \cdots, A^{n-1}q_1}$$
+\end{definition}
+
+\begin{remark}
+Generating a Krylov subspace only require doing m-v products $Ax$. For sparse $A$ this is particular useful.
+\end{remark}
+
+\section{Orthonormal basis}
+Now, we want to generate a orthonormal basis $Q_k = \{q_1, \cdots, q_k\}$ for $K(A, q_1, k)$.
+\subsection{Lanczos}
+If $A=A^\top$, we know there exists $Q$ s.t. $Q^\top AQ=T$ and $QQ^\top = Q^\top Q = I$, where $T$ is tri-diagonal.
+\begin{lemma}
+$$\vspan{q_1, \cdots, q_k} = K(A, q_1, k)$$
+\end{lemma}
+\begin{proof}
+$$K(A, q_1, k) = QQ^\top K(A, q_1, k) = Q(e_1, Te_1, \cdots, T^{n-1} e_1) = (q_1, t_{11}q_1 + t_{12}q_2, a q_1 + b q_2 + cq_3, \cdots)$$
+\qed
+\end{proof}
+
+So the problem is how to tridiagonalize $A$. Let
+$$T = \begin{pmatrix}
+\alpha_1    &   \beta_1     &           &   \cdots  & 0         \\
+\beta_1     &   \alpha_2    &   \ddots  &           & \vdots    \\
+            &   \ddots      &   \ddots  &   \ddots  &           \\
+\vdots      &               &   \ddots  &   \ddots  & \beta_{n-1}\\
+0           &   \cdots      &           &   \beta_{n-1} & \alpha_n
+\end{pmatrix}$$
+Rewrite $Q^\top A Q = T$ as $AQ = QT$, equating the columns
+\begin{align}
+Aq_i = \beta_{i-1}q_{i-1} + \alpha_i q_{i} + \beta_{i} q_{i+1} \label{Schmidt}
+\end{align}
+
+Let $r_i = Aq_i - \alpha_i q_i - \beta_{i-1}q_{i-1}$, then
+$$q_{i+1} = \frac{r_i}{\beta_i}, \beta_i = ||r_i||$$
+Multiplying Eq. (\ref{Schmidt}) by $q_i^\top$, we have
+$$\alpha_i = q_i^\top A q_i = q_i^\top (Aq_i - \beta_{i-1}q_{i-1})$$
+
+Hence the process
+\begin{itemize}
+\item $\beta_0 \leftarrow ||q_1||, q_1 \leftarrow \frac{q_1}{\beta_0}$
+\item $r_i \leftarrow Aq_i - \beta_{i-1}q_{i-1}$
+\item $\alpha_i \leftarrow q_i^\top r_i$
+\item $r_i \leftarrow r_i - \alpha_i q_i$
+\item $\beta_i = ||r_i||$
+\item $q_{i+1} \leftarrow r_i / \beta_i$
+\end{itemize}
+
+\begin{remark}
+$$q_i^\top r_k = \beta_k q_i^\top q_{k+1} = 0, \forall i=1, \cdots, k$$
+\end{remark}
+
+\begin{remark}
+Note when $\beta_i = 0$, Lanczos process cannot proceed. $K(A, q_0, i)$ is an $A$-invariant subspace, i.e. $A K(A, q_0, i) = K(A, q_0, i)$.
+However we will see this is typically not a problem for solving linear systems.
+\end{remark}
+
+\subsection{Arnoldi}
+
+\section{Linear System}
+\subsection{Conjugate Gradient as a special case of Lanczos}
+CG works for A is symmetric and pd. Let $q_1 = r_0 / \beta_0$, where $r_0 = b - Ax_0, \beta_0 = ||r_0||$. $x_k = x_0 + Q_k y_k$, where $Q_k = (q_1, \cdots, q_k)$
+
+We have two ways to view CG.
+
+\noindent{\textbf{Variational}}
+\begin{center}
+Minimize $\phi(x) = \frac{1}{2} x^\top A x - b^\top x$. (This is viable because $A$ is pd.)
+\end{center}
+
+\begin{align*}
+\phi(x_k) = \phi(x_0 + Q_k y_k) &= \frac{1}{2}(x_0 + Q_k y_k)^\top A (x_0 + Q_k y_k) + b^\top (x_0 + Q_k y_k) \\
+\frac{\partial \phi(x_0 + Q_k y_k)}{\partial y_k} &= Q_k^\top A (x_0 + Q_k y_k) + b^\top Q_k = T_k y_k - Q_k^\top r_0 = 0
+\end{align*}
+Thus
+\begin{align}
+T_k y_k = Q_k^\top r_0 = \beta_0 e_1 \label{CG-Galerkin}
+\end{align}
+
+\noindent{\textbf{Galerkin condition}}
+\begin{center}
+Find $x_k$ s.t. $b - Ax_k \bot Q_k$
+\end{center}
+
+$$0 = Q_k^\top = Q_k^\top(b - Ax_k) = Q_k^\top(r_0 - AQ_ky_k)$$
+Thus
+$$T_k y_k = Q_k^\top r_0 = \beta_0 e_1$$
+
+Solving the system Eq. (\ref{CG-Galerkin}) give us $y_k$ and then $x_k$. However doing the affine transformation $x_k = x_0 + Q_k y_k$ is slow $O(kN)$, we now derive a recursive formula to accelerate the process.
+
+Writing the LDLT decomposition of $T_k = L_kD_kL_k^\top$, where
+$$L_k = \begin{pmatrix}
+1       &       &    &   \\
+l_1     &\ddots  &   &   \\
+        &\ddots  &\ddots   &   \\
+        &   &  l_{k-1} & 1 \\
+\end{pmatrix}, D_k = \begin{pmatrix}
+d_1 & &\\
+ & \ddots & \\
+ & & d_k \\
+\end{pmatrix}$$
+
+$l, d$ can be computed
+\begin{align*}
+d_1 &= \alpha_1 \\
+l_{i-1} &= \beta_{i-1} / d_{i-1} \\
+d_i &= \alpha_i - l_{i-1}\beta_{i-1}
+\end{align*}
+
+Let $v_k = L_k^\top y_k, C_kL_k^\top = Q_k$, then
+\begin{align*}
+T_k y_k = L_k D_k L_k^\top y_k = L_k D_k v_k &= \beta_0 e_1 \\
+x_k = x_0 + Q_k y_k = x_0 + C_k L_k^\top y_k &= x_0 + C_k v_k
+\end{align*}
+
+Looking at the equations, we will get
+\begin{align*}
+v_k = (v_{k-1}; v_k)\\
+C_k = (C_{k-1}, C_k)
+\end{align*}
+
+where
+$$v_k = \begin{cases}
+\frac{\beta_0}{d_1} & k=1 \\
+\frac{-d_{k-1}l_{k-1}v_{k-1}}{d_k} & k>1
+\end{cases}$$
+
+$$c_k = \begin{cases}
+q_1 & k=1\\
+q_k - l_{k-1} c_{k-1} & k>1
+\end{cases}$$
+
+We got the recursion
+$$x_k = x_0 + C_{k-1} v_{k-1} + c_k v_k = x_{k-1} + c_k v_k$$
+
+The full CG algorithm
+\begin{itemize}
+\item Initialize: $q_1 = r_0 / \beta_0$, $r_0 = b - Ax_0$, $\beta_0 = ||r_0||$
+\item Do Lanczos process to get $\alpha_i, \beta_i, q_{i+1}$
+\item Compute $d_i, l_{i-1}$
+\item Compute $v_k, c_k$
+\item Compute $x_k$
+\end{itemize}
+
+\begin{remark}
+Because $A$ is pd, the system $T_k y_k = \beta_0 e_1$ will always have a solution.
+\end{remark}
+
+\begin{remark}
+If the Lanczos process terminates early (i.e., $\beta_i$ = 0), CG founds the optimal solution $x^*$. Hence $\beta_i$ can be used as a convergence criteria.
+\end{remark}
+
+\subsection{Conjugate Gradient (geometric)}
+Let
+\begin{align}
+x_k &= x_0 + \sum_{i=1}^k \alpha_i p_i\label{eqn:cgg-x}\\
+e_k &= x_k - x*\nonumber\\
+r_k &= b - Ax_k = -Ae_k \label{eqn:cgg-r}\\
+P_k &= (p_1, \cdots, p_k) \nonumber\\
+R_k &= (r_0, \cdots, r_k) \nonumber
+\end{align}
+
+We assume
+\begin{enumerate}
+    \item $P$ is conjugate, i.e. $p_i^\top A p_j = 0, \forall i\ne j$;
+    \item $p_{i+1}$ is a linear combination of $r_i$ and $p_1, \cdots, p_i$, i.e. $p_1, \cdots, p_n$ is generated by conjugate Gram-Schmidt from $r_0, \cdots, r_{n-1}$;
+    \item Galerkin condition holds, i.e. $r_k \bot \vspan{P_k}$
+\end{enumerate}
+
+Note that
+\begin{align*}
+r_{i+1} &= r_{i} - \alpha_{i+1}Ap_{i+1}  \label{eqn:cgg-r-recursive}
+\end{align*}
+
+\begin{theorem}
+$$\vspan{P_{k+1}} = \vspan{R_{k}} = \vspan{r_0, Ar_0, \cdots, A^{k-1}r_0}$$
+\end{theorem}
+\begin{proof}
+$$\vspan{P_1} = \vspan{R_0} = \vspan{r_0}$$
+$$\vspan{P_{i+1}} = \vspan{\vspan{R_i}, P_i} = \vspan{\vspan{R_i}, R_{i-1}} = \vspan{R_i} $$
+\begin{align*}
+\vspan{R_{i+1}} &= \vspan{\vspan{R_i}, A\vspan{P_{i+1}}} = \vspan{r_0, Ar_0, \cdots, A^{i-1}r_0, Ar_0, \cdots, A^i r_0} \\
+        &= \vspan{r_0, Ar_0, \cdots, A^{i}r_0}
+\end{align*}\qed
+\end{proof}
+
+\begin{corollary}
+$$A\vspan{R_k} \in A\vspan{R_{k+1}}$$
+\end{corollary}
+
+\begin{corollary}
+\begin{align*}
+r_k &\bot R_{k-1} \\
+r_k &\bot AP_{k-1} 
+\end{align*}
+\end{corollary}
+
+Multiply $p_k$ to Eqn. (\ref{eqn:cgg-r-recursive}) and replace $i+1$ with $i$
+$$0 = p_i^\top r_i = r_{i-1}^\top p_i - \alpha_i p_i^\top A p_i$$
+Thus
+\begin{align}
+\alpha_k = \frac{p_k^\top r_{k-1}}{p_k^\top A p_k} = \frac{(r_{k-1} + \sum_{i=1}^{k-1}\beta_{ki} p_i)^\top r_{k-1}}{p_k^\top A p_k} = \frac{r_{k-1}^\top r_{k-1}}{p_k^\top A p_k}
+\end{align}
+
+For beta, let
+$$p_{k+1} = r_k - \sum_{i=1}^k \beta_{k+1, i} p_i$$
+Multiply it by $p_i^\top A$
+$$0 = p_i^\top A r_k - \beta_{k+1, i} p_i^\top A p_i$$
+Note that $r_k \bot AP_{k-1}$, thus $\beta_{k+1, i} = 0$ for $i=1, \cdots, k-1$. Let
+$\beta_{k+1} = \beta_{k+1, k}$
+\begin{align}
+\beta_{k+1} = \frac{r_k^\top A p_k}{p_k^\top A p_k} = \frac{r_k^\top (r_{k-1} - r_{k})/\alpha_k}{p_k^\top A p_k} = -\frac{r_{k}^\top r_k}{r_{k-1}^\top r_{k-1}}
+\end{align}
+
+Putting everything together we have
+\begin{itemize}
+    \item $r_0 \leftarrow b - Ax_0, p_1 = r_0$
+    \item $\alpha_k \leftarrow \frac{r_{k-1}^\top r_{k-1}}{p_k^\top A p_k}$
+    \item $r_k = r_{k-1} - \alpha_k A p_k$
+    \item $\beta_{k+1} \leftarrow -\frac{r_{k}^\top r_k}{r_{k-1}^\top r_{k-1}}$
+    \item $p_{k+1} \leftarrow r_k - \beta_{k+1}p_k$
+\end{itemize}
+
+\subsection{Lanczos}
+
+\section{Eigen value}
+
+\end{document}
